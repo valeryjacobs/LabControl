@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>LabControl</title>
+
+    <script src="/Scripts/markdown.js"></script>
+    <style>
+        body {
+            font-family: "Helvetica Neue",Helvetica,"Segoe UI",Arial,freesans,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+            font-size: 16px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div class="input-group">
+            <span class="input-group-addon" id="basic-addon1">Raspberry Pi name</span>
+            <input id="deviceName" type="text" class="form-control" placeholder="Pi name as stated on the sticker." aria-describedby="basic-addon1">
+        </div>
+    </div>
+    <div id="content"> </div>
+    <input type="hidden" id="displayname" />
+    <script src="Scripts/jquery-1.6.4.min.js" "></script>
+    <script src="/Scripts/jquery.signalR-2.0.0.js"></script>
+    <script src="/signalr/hubs"></script>
+    <script type="text/javascript">
+        $(function () {
+            var labguid = "";
+            if (localStorage.getItem("labguid"))
+            {
+                labguid = localStorage.getItem("labguid");
+            }
+            else
+            {
+                labguid = GetGuid();
+                localStorage.setItem("labguid", labguid);
+            }
+          
+            var chat = $.connection.labHub;
+            chat.client.broadcastMessage = function (name, message) {
+                var htmlval = markdown.toHTML(message);
+                $('#content').html(htmlval);
+            };
+
+            function S4() {
+                return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+            }
+
+            function GetGuid() {
+                guid = (S4() + S4() + "-" + S4() + "-4" + S4().substr(0, 3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
+                return guid;
+            }
+
+            $.connection.hub.start().done(function () {
+                $('#sendmessage').click(function () {
+                    chat.server.send($('#displayname').val(), $('#message').val());
+                    $('#message').val('').focus();
+                });
+
+                chat.server.getContent().done(function (content) {
+                    var htmlval = markdown.toHTML(content);
+                    $('#content').html(htmlval);
+                });
+            });
+
+            $.fn.scrollStopped = function (callback) {
+                var that = this, $this = $(that);
+                $this.scroll(function (ev) {
+                    clearTimeout($this.data('scrollTimeout'));
+                    $this.data('scrollTimeout', setTimeout(callback.bind(that), 250, ev));
+                });
+            };
+
+            $(window).scrollStopped(function (ev) {
+                var body = document.body,
+                    html = document.documentElement;
+
+                var height = Math.max(body.scrollHeight, body.offsetHeight,
+                                       html.clientHeight, html.scrollHeight, html.offsetHeight);
+                console.log(ev);
+                var scroll = $(window).scrollTop();
+
+                chat.server.updatePos(labguid, $('#deviceName').val(), height, scroll);
+            });
+        });
+    </script>
+</body>
+</html>
