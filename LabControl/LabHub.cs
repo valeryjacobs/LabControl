@@ -13,6 +13,7 @@ using System.Text;
 using Microsoft.Azure.Devices.Client;
 using System.Web.Caching;
 using StackExchange.Redis;
+using System.Threading;
 
 namespace SignalRChat
 {
@@ -71,48 +72,69 @@ namespace SignalRChat
 
         private async Task HandlePos(string clientId, string clientName, int maxHeight, int pos)
         {
-            IDatabase cache = Connection.GetDatabase();
-
-            string key =cache.StringGet(clientId);
-            if (key == null )
+            using (new IgnoreSynchronizationContext())
             {
-                AddDeviceAsync(clientId);
+                IDatabase cache = Connection.GetDatabase();
+
+                string key = cache.StringGet(clientId);
+                if (key == null)
+                {
+                   await AddDeviceAsync(clientId);
+                }
+
+                var messageContent = new { ClientId = clientId, ClientName = clientName, MaxHeight = maxHeight, Pos = pos };
+
+                var messageString = JsonConvert.SerializeObject(messageContent);
+                var message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageString));
+                var deviceClient = DeviceClient.Create("labcontrol.azure-devices.net", new DeviceAuthenticationWithRegistrySymmetricKey(clientId, cache.StringGet(clientId)));
+
+                try
+                {
+                    deviceClient.SendEventAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine(ex.Message);
+                }
+
+                Debug.WriteLine("ID: " + clientId + " Max:" + maxHeight + " pos:" + pos);
             }
-
-            var messageContent = new { ClientId = clientId, ClientName = clientName, MaxHeight = maxHeight, Pos = pos };
-
-            var messageString = JsonConvert.SerializeObject(messageContent);
-            var message = new Microsoft.Azure.Devices.Client.Message(Encoding.ASCII.GetBytes(messageString));
-            var deviceClient = DeviceClient.Create("labcontrol.azure-devices.net", new DeviceAuthenticationWithRegistrySymmetricKey(clientId, cache.StringGet(clientId)));
-
-            try
-            {
-                deviceClient.SendEventAsync(message);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex.Message);
-            }
-
-            Debug.WriteLine("ID: " + clientId + " Max:" + maxHeight + " pos:" + pos);
         }
 
         private async Task AddDeviceAsync(string deviceId)
         {
-            IDatabase cache = Connection.GetDatabase();
-
-            Device device;
-            try
+            using (new IgnoreSynchronizationContext())
             {
-                device = await registryManager.AddDeviceAsync(new Device(deviceId));
-            }
-            catch (DeviceAlreadyExistsException)
-            {
-                device = await registryManager.GetDeviceAsync(deviceId);
-            }
+                IDatabase cache = Connection.GetDatabase();
 
-            Debug.WriteLine("Key: " + device.Authentication.SymmetricKey.PrimaryKey);
-            cache.StringSet(deviceId, device.Authentication.SymmetricKey.PrimaryKey); 
+                Device device;
+                try
+                {
+                    device = await registryManager.AddDeviceAsync(new Device(deviceId));
+                }
+                catch (DeviceAlreadyExistsException)
+                {
+                    device = await registryManager.GetDeviceAsync(deviceId);
+                }
+
+                Debug.WriteLine("Key: " + device.Authentication.SymmetricKey.PrimaryKey);
+                cache.StringSet(deviceId, device.Authentication.SymmetricKey.PrimaryKey);
+
+            }
+        }
+    }
+
+    public sealed class IgnoreSynchronizationContext : IDisposable
+    {
+        private readonly SynchronizationContext _original;
+        public IgnoreSynchronizationContext()
+        {
+            _original = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+        }
+        public void Dispose()
+        {
+            SynchronizationContext.SetSynchronizationContext(_original);
         }
     }
 }
