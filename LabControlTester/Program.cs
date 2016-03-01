@@ -1,4 +1,5 @@
 ﻿using Microsoft.Azure.Devices;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,14 +14,17 @@ namespace LabControlTester
 
         static void Main(string[] args)
         {
-            Test();
-            
 
+           var conn = ConnectionMultiplexer.Connect("labcontrol.redis.cache.windows.net,abortConnect=false,,allowAdmin=true,ssl=true,password=w8CmcHlkBGv2wjZCHaj3ISvfI+tpBqpmH3StjRGf4gc=");
+            IDatabase cache = conn.GetDatabase();
+            var endpoints = conn.GetEndPoints(true);
+            foreach (var endpoint in endpoints)
+            {
+                var server = conn.GetServer(endpoint);
+                server.FlushAllDatabases();
+            }
         }
 
-        private static async Task Test()
-        {
-            
-        }
+       
     }
 }
