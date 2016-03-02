@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>LabControl</title>
-
-    <script src="/Scripts/markdown.js"></script>
+    
+   
     <style>
         body {
             font-family: "Helvetica Neue",Helvetica,"Segoe UI",Arial,freesans,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
@@ -13,32 +13,34 @@
         }
     </style>
 </head>
-<body>
-
-    <div id="header">
-        <div class="input-group">
-            <span class="input-group-addon" id="basic-addon1">Raspberry Pi name</span>
-            <input id="deviceName" type="text" class="form-control" placeholder="Pi name as stated on the sticker." aria-describedby="basic-addon1">
+<body style="margin:20px">
+    <div class="container-fluid">
+        <div id="header">
+            <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1">Enter your Raspberry Pi name:</span>
+                <input id="deviceName" type="text" class="form-control" placeholder="Pi name as stated on the sticker." aria-describedby="basic-addon1">
+            </div>
         </div>
+        <div style="margin:30px" id="content"></div>
     </div>
-    <div id="content"> </div>
     <input type="hidden" id="displayname" />
-    <script src="Scripts/jquery-1.6.4.min.js" "></script>
-    <script src="/Scripts/jquery.signalR-2.0.0.js"></script>
+    <link rel="stylesheet" href="/Content/bootstrap.min.css">
+    <script src="/Scripts/jquery-1.12.1.min.js"></script>
+    <script src="/Scripts/jquery.signalR-2.0.0.min.js"></script>
+    <script src="/Scripts/markdown.js"></script>
+    <script src="/Scripts/bootstrap.min.js"></script>
     <script src="/signalr/hubs"></script>
     <script type="text/javascript">
         $(function () {
             var labguid = "";
-            if (localStorage.getItem("labguid"))
-            {
+            if (localStorage.getItem("labguid")) {
                 labguid = localStorage.getItem("labguid");
             }
-            else
-            {
+            else {
                 labguid = GetGuid();
                 localStorage.setItem("labguid", labguid);
             }
-          
+
             var chat = $.connection.labHub;
             chat.client.broadcastMessage = function (name, message) {
                 var htmlval = markdown.toHTML(message);
